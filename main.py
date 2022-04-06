@@ -56,6 +56,7 @@ with open('streets.txt') as f:
     streets = content
 
 # If you want to load all streets, set streets list to empty
+# streets = []
 if not streets:
     streets = ['%']
 
@@ -180,10 +181,18 @@ for prop in prop_list:
 
 owner_dict.pop('', None)
 
+veto_list = []
+with open('ownerveto.txt') as f:
+    content = map(lambda x: x.replace('\r', '').replace('\n', ''), f.readlines())
+    veto_list = content
+
+for owner in veto_list:
+    owner_dict.pop(owner, None)
+
 sorted_owner_tuple = sorted(owner_dict.items(), key=lambda item: len(item[1]), reverse=True)
 prop_list_sorted_by_owner = []
-for x in sorted_owner_tuple:
-    prop_list_sorted_by_owner += x[1]
+for j in sorted_owner_tuple:
+    prop_list_sorted_by_owner += j[1]
 
 # Write results to csv file
 with open(file + '.csv', "w") as csvfile:
