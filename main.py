@@ -169,7 +169,21 @@ for worker in workers:
     for results in worker.results:
         prop_list += results
 
+# Sort the data by owner with most properties
+owner_dict = {'': [[]]}
 
+for prop in prop_list:
+    if prop[1] not in owner_dict:
+        owner_dict[prop[1]] = [prop]
+    else:
+        owner_dict[prop[1]].append(prop)
+
+owner_dict.pop('', None)
+
+sorted_owner_tuple = sorted(owner_dict.items(), key=lambda item: len(item[1]), reverse=True)
+prop_list_sorted_by_owner = []
+for x in sorted_owner_tuple:
+    prop_list_sorted_by_owner += x[1]
 
 # Write results to csv file
 with open(file + '.csv', "w") as csvfile:
@@ -177,7 +191,7 @@ with open(file + '.csv', "w") as csvfile:
 
     csvwriter.writerow(fields)
 
-    csvwriter.writerows(prop_list)
+    csvwriter.writerows(prop_list_sorted_by_owner)
 
 # Write results to xlsx file
 df = pd.DataFrame(prop_list, columns=fields)
