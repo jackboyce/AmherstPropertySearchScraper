@@ -11,6 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import pandas as pd
 import queue
 from threading import Thread
+import re
 import openpyxl
 import PyPDF2 as pypdf
 from lxml.etree import tostring
@@ -174,10 +175,10 @@ for worker in workers:
 owner_dict = {'': [[]]}
 
 for prop in prop_list:
-    if prop[1] not in owner_dict:
-        owner_dict[prop[1]] = [prop]
+    if re.sub('[^A-Za-z0-9]+', '', prop[1]) not in owner_dict:
+        owner_dict[re.sub('[^A-Za-z0-9]+', '', prop[1])] = [prop]
     else:
-        owner_dict[prop[1]].append(prop)
+        owner_dict[re.sub('[^A-Za-z0-9]+', '', prop[1])].append(prop)
 
 owner_dict.pop('', None)
 
@@ -187,7 +188,7 @@ with open('ownerveto.txt') as f:
     veto_list = content
 
 for owner in veto_list:
-    owner_dict.pop(owner, None)
+    owner_dict.pop(re.sub('[^A-Za-z0-9]+', '', owner), None)
 
 sorted_owner_tuple = sorted(owner_dict.items(), key=lambda item: len(item[1]), reverse=True)
 prop_list_sorted_by_owner = []
