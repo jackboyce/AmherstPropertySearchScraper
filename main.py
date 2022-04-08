@@ -181,6 +181,7 @@ for worker in workers:
 # Sort the data by owner with most properties
 owner_dict = {'': [[]]}
 
+# Take the properties and then add them to a dict to create one owner with a collection of properties
 for prop in prop_list:
     if re.sub('[^A-Za-z0-9 ]+', '', prop[1]) not in owner_dict:
         owner_dict[re.sub('[^A-Za-z0-9 ]+', '', prop[1])] = [prop]
@@ -197,7 +198,7 @@ with open('ownerveto.txt') as f:
     veto_list = content
 
 for owner in veto_list:
-    owner_dict.pop(owner, None)
+    owner_dict.pop(re.sub('[^A-Za-z0-9 ]+', '', owner), None)
 
 def sequence_uniqueness(seq, token2frequency):
     return sum(1/token2frequency[t]**0.5 for t in seq)
@@ -252,7 +253,6 @@ for owner, comps in grouping.items():
             else:
                 clean_grouping[owner].append(owner2)
 clean_grouping.pop('', None)
-print(clean_grouping)
 
 skip_list = []
 
@@ -270,8 +270,6 @@ for owner, comps in clean_grouping.items():
             # owner_dict[owner].append(temp)
             skip_list.append(name)
 
-print(owner_dict)
-
 # Sort the owner_dict
 owner_dict = dict(sorted(owner_dict.items(), key=lambda item: len(item[1]), reverse=True))
 
@@ -279,7 +277,6 @@ prop_list_sorted_by_owner = []
 for j in owner_dict.items():
     prop_list_sorted_by_owner += j[1]
 
-print(prop_list_sorted_by_owner)
 # Write results to csv file
 with open(file + '.csv', "w") as csvfile:
     csvwriter = csv.writer(csvfile)
