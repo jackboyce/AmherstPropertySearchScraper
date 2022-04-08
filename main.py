@@ -12,6 +12,13 @@ import pandas as pd
 import queue
 from threading import Thread
 import re
+from collections import Counter
+from cleanco import basename
+import regex
+import nltk
+from nltk.corpus import stopwords
+nltk.download('stopwords')
+nltk.download('punkt')
 import openpyxl
 import PyPDF2 as pypdf
 from lxml.etree import tostring
@@ -61,7 +68,7 @@ with open('streets.txt') as f:
 if not streets:
     streets = ['%']
 
-# streets = ['FEARING ST', 'AMITY ST', 'NUTTING AVE']
+# streets = ['FEARING ST', 'AMITY ST', 'NUTTING AVE', 'MEADOW ST']
 
 class Worker(Thread):
     def __init__(self, request_queue):
@@ -175,26 +182,104 @@ for worker in workers:
 owner_dict = {'': [[]]}
 
 for prop in prop_list:
-    if re.sub('[^A-Za-z0-9]+', '', prop[1]) not in owner_dict:
-        owner_dict[re.sub('[^A-Za-z0-9]+', '', prop[1])] = [prop]
+    if re.sub('[^A-Za-z0-9 ]+', '', prop[1]) not in owner_dict:
+        owner_dict[re.sub('[^A-Za-z0-9 ]+', '', prop[1])] = [prop]
     else:
-        owner_dict[re.sub('[^A-Za-z0-9]+', '', prop[1])].append(prop)
+        owner_dict[re.sub('[^A-Za-z0-9 ]+', '', prop[1])].append(prop)
 
 owner_dict.pop('', None)
 
-veto_list = []
-with open('ownerveto.txt') as f:
-    content = map(lambda x: x.replace('\r', '').replace('\n', ''), f.readlines())
-    veto_list = content
+owner_dict = dict(sorted(owner_dict.items(), key=lambda item: len(item[1]), reverse=True))
 
-for owner in veto_list:
-    owner_dict.pop(re.sub('[^A-Za-z0-9]+', '', owner), None)
+# veto_list = []
+# with open('ownerveto.txt') as f:
+#     content = map(lambda x: x.replace('\r', '').replace('\n', ''), f.readlines())
+#     veto_list = content
+#
+# for owner in veto_list:
+#     owner_dict.pop(re.sub(owner, None)
 
-sorted_owner_tuple = sorted(owner_dict.items(), key=lambda item: len(item[1]), reverse=True)
+def sequence_uniqueness(seq, token2frequency):
+    return sum(1/token2frequency[t]**0.5 for t in seq)
+
+def name_similarity(a, b, token2frequency):
+    a_tokens = set(a)
+    b_tokens = set(b)
+    a_uniq = sequence_uniqueness(a, token2frequency)
+    b_uniq = sequence_uniqueness(b, token2frequency)
+    if a_uniq==0 or b_uniq == 0:
+        return 0
+    else:
+        return sequence_uniqueness(a_tokens.intersection(b_tokens), token2frequency)/(a_uniq * b_uniq) ** 0.5
+
+def parse_name(name):
+    name = basename(name)
+    blacklist = ['PROPERTIES']
+    for word in blacklist:
+        name = name.replace(word, '')
+    #name = name.translate(None, string.punctuation)
+    name = regex.sub(r"[[:punct:]]+", "", name)
+    tokens = nltk.word_tokenize(name)
+    tokens = [t.lower() for t in tokens]
+    tokens = [t for t in tokens if t not in stopwords.words('english')]
+    return tokens
+
+def build_token2frequency(names):
+    alltokens = []
+    for tokens in names.values():
+        alltokens += tokens
+
+    return Counter(alltokens)
+
+parsed_owners = {owner:parse_name(owner) for owner, data in owner_dict.items()}
+
+token2frequency = build_token2frequency(parsed_owners)
+
+#Generate dict of dicts containing the owner name and comparison scores to all other values
+grouping = {}
+for merchant, tokens in parsed_owners.items():
+    grouping[merchant] = {merchant2: name_similarity(tokens, tokens2, token2frequency) for merchant2, tokens2 in parsed_owners.items()}
+
+# Clean the grouping dict to only include scores between a certain range that have matches
+clean_grouping = {'':[]}
+for owner, comps in grouping.items():
+    # print("Owner: " + owner)
+    for owner2, score in comps.items():
+        if 0.99 > float(score) > 0.5:
+            # print(str(score) + ":\t" + owner2)
+            if owner not in clean_grouping:
+                clean_grouping[owner] = [owner2]
+            else:
+                clean_grouping[owner].append(owner2)
+clean_grouping.pop('', None)
+print(clean_grouping)
+
+skip_list = []
+
+# Move the matching names in the owner_dict list based on the generated matches
+for owner, comps in clean_grouping.items():
+    if owner in skip_list:
+        continue
+    for name in comps:
+        if name == owner:
+            continue
+        if name in owner_dict:
+            temp = list(owner_dict.pop(name))
+            for i in temp:
+                owner_dict[owner].append(i)
+            # owner_dict[owner].append(temp)
+            skip_list.append(name)
+
+print(owner_dict)
+
+# Sort the owner_dict
+owner_dict = dict(sorted(owner_dict.items(), key=lambda item: len(item[1]), reverse=True))
+
 prop_list_sorted_by_owner = []
-for j in sorted_owner_tuple:
+for j in owner_dict.items():
     prop_list_sorted_by_owner += j[1]
 
+print(prop_list_sorted_by_owner)
 # Write results to csv file
 with open(file + '.csv', "w") as csvfile:
     csvwriter = csv.writer(csvfile)
