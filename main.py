@@ -191,13 +191,13 @@ owner_dict.pop('', None)
 
 owner_dict = dict(sorted(owner_dict.items(), key=lambda item: len(item[1]), reverse=True))
 
-# veto_list = []
-# with open('ownerveto.txt') as f:
-#     content = map(lambda x: x.replace('\r', '').replace('\n', ''), f.readlines())
-#     veto_list = content
-#
-# for owner in veto_list:
-#     owner_dict.pop(re.sub(owner, None)
+veto_list = []
+with open('ownerveto.txt') as f:
+    content = map(lambda x: re.sub('[^A-Za-z0-9 ]+', '', x.replace('\r', '').replace('\n', '')), f.readlines())
+    veto_list = content
+
+for owner in veto_list:
+    owner_dict.pop(owner, None)
 
 def sequence_uniqueness(seq, token2frequency):
     return sum(1/token2frequency[t]**0.5 for t in seq)
